@@ -1,1 +1,581 @@
-# Здесь будет OpenAPI описание всех доступных эндпоинтов и моделей данных.
+openapi: 3.0.3
+info:
+  title: Bank Cards API
+  description: |
+    REST API for bank card management system.
+
+    ## Authentication
+    All endpoints except `/api/auth/**` require a Bearer JWT token.
+
+    ## Roles
+    - **ADMIN** — full access: create/delete/block/activate any card, manage users
+    - **USER** — access to own cards: view, request block, transfer between own cards
+  version: "1.0"
+  contact:
+    name: Bank Cards Support
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Registration and login
+  - name: Cards (User)
+    description: User operations on own cards
+  - name: Cards (Admin)
+    description: Admin operations on all cards
+  - name: Users (Admin)
+    description: Admin operations on users
+
+paths:
+
+  # ───────────── AUTH ─────────────
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRegisterRequest'
+            example:
+              email: user@bank.com
+              password: Password1!
+      responses:
+        '201':
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+            example:
+              email: admin@bank.com
+              password: Admin1234
+      responses:
+        '200':
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ───────────── USER CARDS ─────────────
+
+  /api/cards:
+    get:
+      tags: [Cards (User)]
+      summary: Get own cards (paginated, optional status filter)
+      parameters:
+        - $ref: '#/components/parameters/StatusFilter'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paginated list of own cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardPage'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/cards/{id}:
+    get:
+      tags: [Cards (User)]
+      summary: Get a specific own card by ID
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Card details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/cards/{id}/balance:
+    get:
+      tags: [Cards (User)]
+      summary: Get balance of own card
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Card balance
+          content:
+            application/json:
+              schema:
+                type: number
+                format: decimal
+                example: 1500.0000
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/cards/{id}/block:
+    patch:
+      tags: [Cards (User)]
+      summary: Request to block own card
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Card blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/cards/transfer:
+    post:
+      tags: [Cards (User)]
+      summary: Transfer funds between own cards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardTransferRequest'
+      responses:
+        '204':
+          description: Transfer completed
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '422':
+          $ref: '#/components/responses/UnprocessableError'
+
+  # ───────────── ADMIN CARDS ─────────────
+
+  /api/admin/cards:
+    get:
+      tags: [Cards (Admin)]
+      summary: Get all cards (paginated, optional status filter)
+      parameters:
+        - $ref: '#/components/parameters/StatusFilter'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paginated list of all cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardPage'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    post:
+      tags: [Cards (Admin)]
+      summary: Create a card for a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardCreateRequest'
+      responses:
+        '201':
+          description: Card created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/admin/cards/{id}:
+    delete:
+      tags: [Cards (Admin)]
+      summary: Delete a card by ID
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '204':
+          description: Card deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/admin/cards/{id}/block:
+    patch:
+      tags: [Cards (Admin)]
+      summary: Block a card
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Card blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/admin/cards/{id}/activate:
+    patch:
+      tags: [Cards (Admin)]
+      summary: Activate a card
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Card activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ───────────── ADMIN USERS ─────────────
+
+  /api/admin/users:
+    get:
+      tags: [Users (Admin)]
+      summary: Get all users
+      responses:
+        '200':
+          description: List of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/admin/users/{id}:
+    get:
+      tags: [Users (Admin)]
+      summary: Get user by ID
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags: [Users (Admin)]
+      summary: Delete user by ID
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: User deleted
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+# ───────────── COMPONENTS ─────────────
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CardId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Card UUID
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: User UUID
+    StatusFilter:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/CardStatus'
+      description: Filter by card status
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+      description: Page number (0-indexed)
+    Size:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 10
+      description: Page size
+
+  schemas:
+
+    AuthRegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@bank.com
+        password:
+          type: string
+          minLength: 8
+          description: Min 8 chars, must contain uppercase, lowercase, digit
+          example: Password1!
+
+    AuthLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@bank.com
+        password:
+          type: string
+          example: Admin1234
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Bearer token
+        email:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, USER]
+
+    CardCreateRequest:
+      type: object
+      required: [ownerId, expirationDate, initialBalance]
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+        expirationDate:
+          type: string
+          format: date
+          example: "2028-12-31"
+        initialBalance:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 1000.00
+
+    CardTransferRequest:
+      type: object
+      required: [fromCardId, toCardId, amount]
+      properties:
+        fromCardId:
+          type: string
+          format: uuid
+        toCardId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          example: 500.00
+
+    CardResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        maskedNumber:
+          type: string
+          example: "**** **** **** 3456"
+        ownerId:
+          type: string
+          format: uuid
+        ownerEmail:
+          type: string
+          format: email
+        expirationDate:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/CardStatus'
+        balance:
+          type: number
+          format: decimal
+          example: 1500.0000
+
+    CardPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, USER]
+
+    CardStatus:
+      type: string
+      enum: [ACTIVE, BLOCKED, EXPIRED]
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: Card not found
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+          additionalProperties:
+            type: string
+
+  responses:
+    UnauthorizedError:
+      description: Invalid or missing credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 401
+            message: Invalid email or password
+            timestamp: "2024-01-01T12:00:00"
+            details: {}
+
+    ForbiddenError:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 403
+            message: Access denied
+            timestamp: "2024-01-01T12:00:00"
+            details: {}
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 404
+            message: Card not found
+            timestamp: "2024-01-01T12:00:00"
+            details: {}
+
+    ConflictError:
+      description: Conflict (e.g. email already exists, card is blocked)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 409
+            message: Email already exists
+            timestamp: "2024-01-01T12:00:00"
+            details: {}
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 400
+            message: Validation Failed
+            timestamp: "2024-01-01T12:00:00"
+            details:
+              email: must be a well-formed email address
+              password: size must be between 8 and 2147483647
+
+    UnprocessableError:
+      description: Business logic error (e.g. insufficient funds)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 422
+            message: Insufficient funds
+            timestamp: "2024-01-01T12:00:00"
+            details: {}
