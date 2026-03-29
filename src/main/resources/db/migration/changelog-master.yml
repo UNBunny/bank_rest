@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: nikita
+      changes:
+        - sqlFile:
+            path: changes/001_create_users_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: 2
+      author: nikita
+      changes:
+        - sqlFile:
+            path: changes/002_create_cards_table.sql
+            relativeToChangelogFile: true
+
+  - changeSet:
+      id: 3
+      author: nikita
+      changes:
+        - sqlFile:
+            path: changes/003_insert_admin_user.sql
+            relativeToChangelogFile: true
