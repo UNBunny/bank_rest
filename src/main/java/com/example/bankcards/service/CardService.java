@@ -13,7 +13,7 @@ import java.util.UUID;
 public interface CardService {
     CardResponse createCard(CardCreateRequest request);
     CardResponse getCardById(UUID id, UUID requesterId, boolean isAdmin);
-    PageResponse<CardResponse> getAllCards(Pageable pageable);
+    PageResponse<CardResponse> getAllCards(CardStatus status, Pageable pageable);
     PageResponse<CardResponse> getCardsByOwner(UUID ownerId, CardStatus status, Pageable pageable);
     CardResponse blockCard(UUID id);
     CardResponse activateCard(UUID id);

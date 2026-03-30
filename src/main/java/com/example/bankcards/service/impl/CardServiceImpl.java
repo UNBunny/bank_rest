@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Slf4j
@@ -76,8 +77,10 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<CardResponse> getAllCards(Pageable pageable) {
-        Page<Card> page = cardRepository.findAll(pageable);
+    public PageResponse<CardResponse> getAllCards(CardStatus status, Pageable pageable) {
+        Page<Card> page = (status != null)
+                ? cardRepository.findAllByStatus(status, pageable)
+                : cardRepository.findAll(pageable);
         return toPageResponse(page);
     }
 
@@ -105,6 +108,9 @@ public class CardServiceImpl implements CardService {
     public CardResponse activateCard(UUID id) {
         Card card = cardRepository.findById(id)
                 .orElseThrow(() -> new CardNotFoundException(id));
+        if (card.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new IllegalStateException("Cannot activate card that has passed its expiration date: " + id);
+        }
         card.setStatus(CardStatus.ACTIVE);
         log.info("Card activated by admin: id={}", id);
         return cardMapper.toResponse(cardRepository.save(card));
@@ -133,15 +139,36 @@ public class CardServiceImpl implements CardService {
     @Override
     @Transactional
     public void transfer(CardTransferRequest request, UUID requesterId) {
-        Card from = cardRepository.findByIdAndOwnerId(request.fromCardId(), requesterId)
-                .orElseThrow(() -> new CardNotFoundException(request.fromCardId()));
-        Card to = cardRepository.findByIdAndOwnerId(request.toCardId(), requesterId)
-                .orElseThrow(() -> new CardNotFoundException(request.toCardId()));
-        if (from.getStatus() == CardStatus.BLOCKED) { throw new CardBlockedException(from.getId()); }
-        if (to.getStatus() == CardStatus.BLOCKED)   { throw new CardBlockedException(to.getId()); }
-        if (from.getBalance().compareTo(request.amount()) < 0) { throw new InsufficientFundsException(); }
+        if (request.fromCardId().equals(request.toCardId())) {
+            throw new IllegalArgumentException("Source and target cards must be different");
+        }
+
+        UUID firstLockId = request.fromCardId().compareTo(request.toCardId()) < 0
+                ? request.fromCardId() : request.toCardId();
+        UUID secondLockId = firstLockId.equals(request.fromCardId())
+                ? request.toCardId() : request.fromCardId();
+
+        Card first = cardRepository.findByIdAndOwnerIdForUpdate(firstLockId, requesterId)
+                .orElseThrow(() -> new CardNotFoundException(firstLockId));
+        Card second = cardRepository.findByIdAndOwnerIdForUpdate(secondLockId, requesterId)
+                .orElseThrow(() -> new CardNotFoundException(secondLockId));
+
+        Card from = first.getId().equals(request.fromCardId()) ? first : second;
+        Card to = first.getId().equals(request.fromCardId()) ? second : first;
+
+        if (from.getStatus() != CardStatus.ACTIVE) {
+            throw new CardBlockedException(from.getId());
+        }
+        if (to.getStatus() != CardStatus.ACTIVE) {
+            throw new CardBlockedException(to.getId());
+        }
+        if (from.getBalance().compareTo(request.amount()) < 0) {
+            throw new InsufficientFundsException();
+        }
+
         from.setBalance(from.getBalance().subtract(request.amount()));
         to.setBalance(to.getBalance().add(request.amount()));
+
         cardRepository.save(from);
         cardRepository.save(to);
         log.info("Transfer completed: from={}, to={}, amount={}", request.fromCardId(), request.toCardId(), request.amount());
