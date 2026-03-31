@@ -76,6 +76,19 @@ public class GlobalExceptionHandler {
         log.warn("Access denied: {}", ex.getMessage());
         return buildError(HttpStatus.FORBIDDEN, "Access denied");
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Illegal argument: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+        log.warn("Illegal state: {}", ex.getMessage());
+        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);

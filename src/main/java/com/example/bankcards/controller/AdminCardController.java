@@ -35,8 +35,8 @@ public class AdminCardController {
             @RequestParam(required = false) CardStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        log.info("[ADMIN] getAllCards: status={}, page={}, size={}", status, page, size);
-        return ResponseEntity.ok(cardService.getAllCards(PageRequest.of(page, size, Sort.by("id"))));
+        log.debug("[ADMIN] getAllCards: status={}, page={}, size={}", status, page, size);
+        return ResponseEntity.ok(cardService.getAllCards(status, PageRequest.of(page, size, Sort.by("id"))));
     }
 
     @PostMapping
