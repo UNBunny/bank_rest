@@ -1,8 +1,8 @@
 ﻿spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bankdb}
-    username: ${SPRING_DATASOURCE_USERNAME:admin}
-    password: ${SPRING_DATASOURCE_PASSWORD:admin}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -15,23 +15,23 @@
   liquibase:
     change-log: classpath:db/migration/changelog-master.yml
     parameters:
-      ADMIN_EMAIL: ${DB_ADMIN_EMAIL:admin@bank.com}
-      ADMIN_PASSWORD_HASH: ${DB_ADMIN_PASSWORD_HASH:$2a$12$iAUGvQCz51BgZWlZ/8klIOf7w7UtVJi8CrTMSY2Krhd.QB4.r51NO}
+      ADMIN_EMAIL: ${DB_ADMIN_EMAIL}
+      ADMIN_PASSWORD_HASH: ${DB_ADMIN_PASSWORD_HASH}
 
 server:
   port: 8080
 
 security:
   jwt:
-    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    secret: ${JWT_SECRET}
     expiration: 86400000
 
 card:
   encryption:
-    key: ${CARD_ENCRYPTION_KEY:0123456789abcdef0123456789abcdef}
+    key: ${CARD_ENCRYPTION_KEY}
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
 springdoc:
   api-docs:
